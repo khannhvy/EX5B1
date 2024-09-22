@@ -1,70 +1,77 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react'; 
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SafeAreaView } from 'react-native';
+import UserList from '../../components/UserList';
+import AddUserScreen from '../../screens/AddUserScreen';
+import EditUser from '../../components/EditUser';
+import { getUsers } from '../../api/userApi';
+import { ActionSheetProvider } from '@expo/react-native-action-sheet';
+import { UserProvider } from '../../api/UserContext';
+import UserDetail from '@/components/UserDetail';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-
-export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({ ios: 'cmd + d', android: 'cmd + m' })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
-  );
+interface User {
+    id: string;
+    name: string;
+    email: string;
+    age: number;
 }
 
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
+type RootStackParamList = {
+    UserList: undefined;
+    AddUser: undefined; 
+    EditUser: { userId: string; userData: User };
+    UserDetail: { userId: string; userData: User }; 
+};
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+const App: React.FC = () => {
+    const [users, setUsers] = useState<User[]>([]);
+
+    useEffect(() => {
+        const fetchUsers = async () => {
+            const usersData = await getUsers();
+            setUsers(usersData);
+        };
+
+        fetchUsers();
+    }, []);
+
+    const updateUsers = (updatedUser: User) => {
+        setUsers((prevUsers) => 
+            prevUsers.map(user => (user.id === updatedUser.id ? updatedUser : user))
+        );
+    };
+
+    return (
+        <UserProvider>
+            <ActionSheetProvider>
+                <NavigationContainer independent={true}>
+                    <Stack.Navigator initialRouteName="UserList">
+                        <Stack.Screen name="UserList">
+                            {(props) => (
+                                <SafeAreaView style={{ flex: 1 }}>
+                                    <UserList {...props} users={users} setUsers={setUsers} />
+                                </SafeAreaView>
+                            )}
+                        </Stack.Screen>
+                        <Stack.Screen name="AddUser">
+                            {(props) => (
+                                <AddUserScreen {...props} setUsers={setUsers} />
+                            )}
+                        </Stack.Screen>
+                        <Stack.Screen name="EditUser">
+                            {(props) => (
+                                <EditUser {...props} updateUser={updateUsers} />
+                            )}
+                        </Stack.Screen>
+                        <Stack.Screen name="UserDetail" component={UserDetail} />
+                    </Stack.Navigator>
+                </NavigationContainer>
+            </ActionSheetProvider>
+        </UserProvider>
+    );
+};
+
+export default App;
